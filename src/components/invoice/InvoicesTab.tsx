@@ -1,27 +1,75 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Eye, Upload } from "lucide-react";
-import { Invoice, Client, Product } from "@/types/invoice";
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview } from "./InvoicePreview";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Client {
+  id: string;
+  name: string;
+  address: string;
+  contact: string;
+  email: string;
+}
+
+interface Product {
+  id: string;
+  designation: string;
+  unit_price: number;
+}
+
+interface Invoice {
+  id: string;
+  number: string;
+  type: string;
+  client_id: string;
+  client_name: string;
+  client_address: string;
+  client_contact: string;
+  items: any;
+  labor: number;
+  discount: number;
+  date: string;
+  logo?: string;
+}
 
 interface InvoicesTabProps {
-  invoices: Invoice[];
-  clients: Client[];
-  products: Product[];
-  onSave: (invoices: Invoice[]) => void;
   logo: string;
   onLogoChange: (logo: string) => void;
 }
 
-export const InvoicesTab = ({ invoices, clients, products, onSave, logo, onLogoChange }: InvoicesTabProps) => {
+export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const [invoicesRes, clientsRes, productsRes] = await Promise.all([
+      supabase.from("invoices").select("*").eq("type", "invoice").order("created_at", { ascending: false }),
+      supabase.from("clients").select("*"),
+      supabase.from("products").select("*"),
+    ]);
+
+    if (invoicesRes.data) setInvoices(invoicesRes.data);
+    if (clientsRes.data) setClients(clientsRes.data);
+    if (productsRes.data) setProducts(productsRes.data);
+    setLoading(false);
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,15 +82,60 @@ export const InvoicesTab = ({ invoices, clients, products, onSave, logo, onLogoC
     }
   };
 
-  const handleCreateInvoice = (invoice: Invoice) => {
-    onSave([...invoices, invoice]);
-    setShowForm(false);
+  const handleCreateInvoice = async (invoice: any) => {
+    const { error } = await supabase.from("invoices").insert({
+      number: invoice.number,
+      type: "invoice",
+      client_id: invoice.clientId,
+      client_name: invoice.clientName,
+      client_address: invoice.clientAddress,
+      client_contact: invoice.clientContact,
+      items: invoice.items,
+      labor: invoice.labor,
+      discount: invoice.discount,
+      date: invoice.date,
+      logo: logo,
+    });
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la facture",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Facture créée",
+        description: "La facture a été créée avec succès",
+      });
+      setShowForm(false);
+      loadData();
+    }
   };
 
   const handleViewInvoice = (invoice: Invoice) => {
-    setSelectedInvoice(invoice);
+    // Convert database format to display format
+    const displayInvoice = {
+      id: invoice.id,
+      number: invoice.number,
+      type: "invoice",
+      clientId: invoice.client_id,
+      clientName: invoice.client_name,
+      clientAddress: invoice.client_address,
+      clientContact: invoice.client_contact,
+      items: invoice.items,
+      labor: invoice.labor,
+      discount: invoice.discount,
+      date: invoice.date,
+      logo: invoice.logo || logo,
+    };
+    setSelectedInvoice(displayInvoice);
     setShowPreview(true);
   };
+
+  if (loading) {
+    return <div className="text-center py-8">Chargement...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -72,8 +165,8 @@ export const InvoicesTab = ({ invoices, clients, products, onSave, logo, onLogoC
       {showForm && (
         <InvoiceForm
           type="invoice"
-          clients={clients}
-          products={products}
+          clients={clients.map(c => ({ ...c, unitPrice: 0 }))}
+          products={products.map(p => ({ ...p, unitPrice: p.unit_price }))}
           onSave={handleCreateInvoice}
           onCancel={() => setShowForm(false)}
         />
@@ -104,15 +197,16 @@ export const InvoicesTab = ({ invoices, clients, products, onSave, logo, onLogoC
             </TableHeader>
             <TableBody>
               {invoices.map((invoice) => {
-                const calc = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-                const totalAfterLabor = calc + invoice.labor;
-                const afterDiscount = totalAfterLabor - (totalAfterLabor * invoice.discount / 100);
+                const items = invoice.items || [];
+                const calc = items.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0);
+                const totalAfterLabor = calc + (invoice.labor || 0);
+                const afterDiscount = totalAfterLabor - (totalAfterLabor * (invoice.discount || 0) / 100);
                 const total = afterDiscount + (afterDiscount * 0.02);
                 
                 return (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.number}</TableCell>
-                    <TableCell>{invoice.clientName}</TableCell>
+                    <TableCell>{invoice.client_name}</TableCell>
                     <TableCell>{new Date(invoice.date).toLocaleDateString("fr-FR")}</TableCell>
                     <TableCell className="text-right">{total.toLocaleString("fr-FR")} FCFA</TableCell>
                     <TableCell className="text-right">

@@ -1,50 +1,103 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
-import { Client } from "@/types/invoice";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-interface ClientsTabProps {
-  clients: Client[];
-  onSave: (clients: Client[]) => void;
+interface Client {
+  id: string;
+  name: string;
+  address: string;
+  contact: string;
+  email: string;
 }
 
-export const ClientsTab = ({ clients, onSave }: ClientsTabProps) => {
+export const ClientsTab = () => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    loadClients();
+  }, []);
+
+  const loadClients = async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les clients",
+        variant: "destructive",
+      });
+    } else {
+      setClients(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const newClient: Client = {
-      id: Date.now().toString(),
-      name: formData.get("name") as string,
-      address: formData.get("address") as string,
-      contact: formData.get("contact") as string,
-      email: formData.get("email") as string,
-    };
+    const { error } = await supabase
+      .from("clients")
+      .insert({
+        name: formData.get("name") as string,
+        address: formData.get("address") as string,
+        contact: formData.get("contact") as string,
+        email: formData.get("email") as string,
+      });
 
-    onSave([...clients, newClient]);
-    setShowForm(false);
-    toast({
-      title: "Client ajouté",
-      description: "Le client a été ajouté avec succès",
-    });
-    e.currentTarget.reset();
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le client",
+        variant: "destructive",
+      });
+    } else {
+      setShowForm(false);
+      toast({
+        title: "Client ajouté",
+        description: "Le client a été ajouté avec succès",
+      });
+      e.currentTarget.reset();
+      loadClients();
+    }
   };
 
-  const handleDelete = (id: string) => {
-    onSave(clients.filter(c => c.id !== id));
-    toast({
-      title: "Client supprimé",
-      description: "Le client a été supprimé",
-    });
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le client",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Client supprimé",
+        description: "Le client a été supprimé",
+      });
+      loadClients();
+    }
   };
+
+  if (loading) {
+    return <div className="text-center py-8">Chargement...</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -2,59 +2,57 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home, Plus } from "lucide-react";
+import { Home } from "lucide-react";
 import { ClientsTab } from "@/components/invoice/ClientsTab";
 import { ProductsTab } from "@/components/invoice/ProductsTab";
 import { InvoicesTab } from "@/components/invoice/InvoicesTab";
 import { QuotesTab } from "@/components/invoice/QuotesTab";
-import { Client, Product, Invoice } from "@/types/invoice";
+import { supabase } from "@/integrations/supabase/client";
 
 const Invoices = () => {
   const navigate = useNavigate();
-  const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [quotes, setQuotes] = useState<Invoice[]>([]);
   const [companyLogo, setCompanyLogo] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedClients = localStorage.getItem("invoice-clients");
-    const savedProducts = localStorage.getItem("invoice-products");
-    const savedInvoices = localStorage.getItem("invoice-invoices");
-    const savedQuotes = localStorage.getItem("invoice-quotes");
-    const savedLogo = localStorage.getItem("company-logo");
-
-    if (savedClients) setClients(JSON.parse(savedClients));
-    if (savedProducts) setProducts(JSON.parse(savedProducts));
-    if (savedInvoices) setInvoices(JSON.parse(savedInvoices));
-    if (savedQuotes) setQuotes(JSON.parse(savedQuotes));
-    if (savedLogo) setCompanyLogo(savedLogo);
+    loadCompanySettings();
   }, []);
 
-  const saveClients = (newClients: Client[]) => {
-    setClients(newClients);
-    localStorage.setItem("invoice-clients", JSON.stringify(newClients));
+  const loadCompanySettings = async () => {
+    const { data } = await supabase
+      .from("company_settings")
+      .select("logo")
+      .single();
+    
+    if (data?.logo) {
+      setCompanyLogo(data.logo);
+    }
+    setLoading(false);
   };
 
-  const saveProducts = (newProducts: Product[]) => {
-    setProducts(newProducts);
-    localStorage.setItem("invoice-products", JSON.stringify(newProducts));
-  };
-
-  const saveInvoices = (newInvoices: Invoice[]) => {
-    setInvoices(newInvoices);
-    localStorage.setItem("invoice-invoices", JSON.stringify(newInvoices));
-  };
-
-  const saveQuotes = (newQuotes: Invoice[]) => {
-    setQuotes(newQuotes);
-    localStorage.setItem("invoice-quotes", JSON.stringify(newQuotes));
-  };
-
-  const saveLogo = (logo: string) => {
+  const saveLogo = async (logo: string) => {
     setCompanyLogo(logo);
-    localStorage.setItem("company-logo", logo);
+    
+    const { data: settings } = await supabase
+      .from("company_settings")
+      .select("id")
+      .single();
+    
+    if (settings) {
+      await supabase
+        .from("company_settings")
+        .update({ logo, updated_at: new Date().toISOString() })
+        .eq("id", settings.id);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p>Chargement...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,19 +76,15 @@ const Invoices = () => {
           </TabsList>
 
           <TabsContent value="clients">
-            <ClientsTab clients={clients} onSave={saveClients} />
+            <ClientsTab />
           </TabsContent>
 
           <TabsContent value="products">
-            <ProductsTab products={products} onSave={saveProducts} />
+            <ProductsTab />
           </TabsContent>
 
           <TabsContent value="invoices">
             <InvoicesTab
-              invoices={invoices}
-              clients={clients}
-              products={products}
-              onSave={saveInvoices}
               logo={companyLogo}
               onLogoChange={saveLogo}
             />
@@ -98,10 +92,6 @@ const Invoices = () => {
 
           <TabsContent value="quotes">
             <QuotesTab
-              quotes={quotes}
-              clients={clients}
-              products={products}
-              onSave={saveQuotes}
               logo={companyLogo}
               onLogoChange={saveLogo}
             />

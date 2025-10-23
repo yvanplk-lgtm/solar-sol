@@ -14,7 +14,176 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          address: string
+          contact: string
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+        }
+        Insert: {
+          address: string
+          contact: string
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+        }
+        Update: {
+          address?: string
+          contact?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      company_settings: {
+        Row: {
+          id: string
+          logo: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          logo?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          logo?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      gallery_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string | null
+          type: string
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          type: string
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          type?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          client_address: string
+          client_contact: string
+          client_id: string | null
+          client_name: string
+          created_at: string | null
+          date: string
+          discount: number | null
+          id: string
+          items: Json
+          labor: number | null
+          logo: string | null
+          number: string
+          type: string
+        }
+        Insert: {
+          client_address: string
+          client_contact: string
+          client_id?: string | null
+          client_name: string
+          created_at?: string | null
+          date: string
+          discount?: number | null
+          id?: string
+          items?: Json
+          labor?: number | null
+          logo?: string | null
+          number: string
+          type: string
+        }
+        Update: {
+          client_address?: string
+          client_contact?: string
+          client_id?: string | null
+          client_name?: string
+          created_at?: string | null
+          date?: string
+          discount?: number | null
+          id?: string
+          items?: Json
+          labor?: number | null
+          logo?: string | null
+          number?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string | null
+          designation: string
+          id: string
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          designation: string
+          id?: string
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          designation?: string
+          id?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          photo_url: string | null
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          photo_url?: string | null
+          role: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          photo_url?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

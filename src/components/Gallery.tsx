@@ -1,23 +1,32 @@
 import { Card } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MediaItem {
   id: string;
   type: "photo" | "video";
   url: string;
-  thumbnail?: string;
+  title?: string;
 }
 
 export const Gallery = () => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
 
   useEffect(() => {
-    const savedMedia = localStorage.getItem("gallery-media");
-    if (savedMedia) {
-      setMediaItems(JSON.parse(savedMedia));
-    }
+    loadGalleryItems();
   }, []);
+
+  const loadGalleryItems = async () => {
+    const { data } = await supabase
+      .from("gallery_items")
+      .select("*")
+      .order("created_at", { ascending: false });
+    
+    if (data) {
+      setMediaItems(data as MediaItem[]);
+    }
+  };
 
   if (mediaItems.length === 0) {
     return (
@@ -59,9 +68,8 @@ export const Gallery = () => {
                   />
                 ) : (
                   <>
-                    <img
-                      src={item.thumbnail || item.url}
-                      alt="Vidéo"
+                    <video
+                      src={item.url}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">

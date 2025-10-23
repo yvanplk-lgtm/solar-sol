@@ -1,48 +1,99 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
-import { Product } from "@/types/invoice";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-interface ProductsTabProps {
-  products: Product[];
-  onSave: (products: Product[]) => void;
+interface Product {
+  id: string;
+  designation: string;
+  unit_price: number;
 }
 
-export const ProductsTab = ({ products, onSave }: ProductsTabProps) => {
+export const ProductsTab = () => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  const loadProducts = async () => {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+    
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les produits",
+        variant: "destructive",
+      });
+    } else {
+      setProducts(data || []);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const newProduct: Product = {
-      id: Date.now().toString(),
-      designation: formData.get("designation") as string,
-      unitPrice: parseFloat(formData.get("unitPrice") as string),
-    };
+    const { error } = await supabase
+      .from("products")
+      .insert({
+        designation: formData.get("designation") as string,
+        unit_price: parseFloat(formData.get("unitPrice") as string),
+      });
 
-    onSave([...products, newProduct]);
-    setShowForm(false);
-    toast({
-      title: "Produit ajouté",
-      description: "Le produit/service a été ajouté avec succès",
-    });
-    e.currentTarget.reset();
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le produit",
+        variant: "destructive",
+      });
+    } else {
+      setShowForm(false);
+      toast({
+        title: "Produit ajouté",
+        description: "Le produit/service a été ajouté avec succès",
+      });
+      e.currentTarget.reset();
+      loadProducts();
+    }
   };
 
-  const handleDelete = (id: string) => {
-    onSave(products.filter(p => p.id !== id));
-    toast({
-      title: "Produit supprimé",
-      description: "Le produit/service a été supprimé",
-    });
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le produit",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Produit supprimé",
+        description: "Le produit/service a été supprimé",
+      });
+      loadProducts();
+    }
   };
+
+  if (loading) {
+    return <div className="text-center py-8">Chargement...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -100,7 +151,7 @@ export const ProductsTab = ({ products, onSave }: ProductsTabProps) => {
               {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.designation}</TableCell>
-                  <TableCell className="text-right">{product.unitPrice.toLocaleString("fr-FR")} FCFA</TableCell>
+                  <TableCell className="text-right">{product.unit_price.toLocaleString("fr-FR")} FCFA</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"

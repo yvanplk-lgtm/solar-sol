@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Users, Image, Video, FileText, Home } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -32,28 +33,31 @@ const Admin = () => {
     }
   };
 
-  const handleMediaUpload = (type: "photo" | "video", e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (type: "photo" | "video", e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
       const reader = new FileReader();
       
-      reader.onloadend = () => {
-        const savedMedia = localStorage.getItem("gallery-media");
-        const mediaItems = savedMedia ? JSON.parse(savedMedia) : [];
-        
-        mediaItems.push({
-          id: Date.now().toString(),
+      reader.onloadend = async () => {
+        const { error } = await supabase.from("gallery_items").insert({
           type,
           url: reader.result as string,
+          title: file.name,
         });
-        
-        localStorage.setItem("gallery-media", JSON.stringify(mediaItems));
-        
-        toast({
-          title: "Média ajouté",
-          description: `${type === "photo" ? "Photo" : "Vidéo"} ajoutée avec succès`,
-        });
+
+        if (error) {
+          toast({
+            title: "Erreur",
+            description: "Impossible d'ajouter le média",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Média ajouté",
+            description: `${type === "photo" ? "Photo" : "Vidéo"} ajoutée avec succès`,
+          });
+        }
       };
       
       reader.readAsDataURL(file);
@@ -80,23 +84,25 @@ const Admin = () => {
     }
   };
 
-  const saveTeamMember = (name: string, role: string, photo?: string) => {
-    const savedTeam = localStorage.getItem("team-members");
-    const teamMembers = savedTeam ? JSON.parse(savedTeam) : [];
-    
-    teamMembers.push({
-      id: Date.now().toString(),
+  const saveTeamMember = async (name: string, role: string, photo?: string) => {
+    const { error } = await supabase.from("team_members").insert({
       name,
       role,
-      photo,
+      photo_url: photo,
     });
-    
-    localStorage.setItem("team-members", JSON.stringify(teamMembers));
-    
-    toast({
-      title: "Membre ajouté",
-      description: "Membre de l'équipe ajouté avec succès",
-    });
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le membre",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Membre ajouté",
+        description: "Membre de l'équipe ajouté avec succès",
+      });
+    }
   };
 
   if (!isLoggedIn) {
