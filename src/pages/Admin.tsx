@@ -12,13 +12,20 @@ import { supabase } from "@/integrations/supabase/client";
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple password check (in production, use proper authentication)
-    if (password === "admin") {
+    
+    const { data } = await supabase
+      .from("admin_settings")
+      .select("password")
+      .single();
+    
+    if (data && data.password === password) {
       setIsLoggedIn(true);
       toast({
         title: "Connexion réussie",
@@ -30,6 +37,55 @@ const Admin = () => {
         description: "Mot de passe incorrect",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Erreur",
+        description: "Les mots de passe ne correspondent pas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      toast({
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 4 caractères",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: settings } = await supabase
+      .from("admin_settings")
+      .select("id")
+      .single();
+    
+    if (settings) {
+      const { error } = await supabase
+        .from("admin_settings")
+        .update({ password: newPassword, updated_at: new Date().toISOString() })
+        .eq("id", settings.id);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de changer le mot de passe",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Mot de passe modifié",
+          description: "Votre mot de passe a été changé avec succès",
+        });
+        setNewPassword("");
+        setConfirmPassword("");
+      }
     }
   };
 
@@ -155,9 +211,10 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
+            <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
           <TabsContent value="media" className="space-y-6">
@@ -239,6 +296,44 @@ const Admin = () => {
                   </div>
                   <Button type="submit" variant="hero">
                     Ajouter le Membre
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Changer le mot de passe Admin</CardTitle>
+                <CardDescription>Modifiez le mot de passe d'accès à l'espace admin</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Entrez le nouveau mot de passe"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirmez le nouveau mot de passe"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="hero">
+                    Changer le mot de passe
                   </Button>
                 </form>
               </CardContent>
