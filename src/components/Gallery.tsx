@@ -1,7 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { Play, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface MediaItem {
   id: string;
@@ -12,6 +14,7 @@ interface MediaItem {
 
 export const Gallery = () => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   useEffect(() => {
     loadGalleryItems();
@@ -58,7 +61,11 @@ export const Gallery = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {mediaItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden group cursor-pointer hover:shadow-[var(--shadow-elegant)] transition-all duration-300">
+            <Card 
+              key={item.id} 
+              onClick={() => setSelectedMedia(item)}
+              className="overflow-hidden group cursor-pointer hover:shadow-[var(--shadow-elegant)] transition-all duration-300"
+            >
               <div className="relative aspect-video">
                 {item.type === "photo" ? (
                   <img
@@ -83,6 +90,36 @@ export const Gallery = () => {
             </Card>
           ))}
         </div>
+
+        <Dialog open={!!selectedMedia} onOpenChange={() => setSelectedMedia(null)}>
+          <DialogContent className="max-w-5xl w-full p-0 bg-black/95 border-0">
+            <DialogClose asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="absolute right-4 top-4 z-50 text-white hover:bg-white/20"
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            </DialogClose>
+            <div className="relative w-full min-h-[60vh] flex items-center justify-center p-4">
+              {selectedMedia?.type === "photo" ? (
+                <img
+                  src={selectedMedia.url}
+                  alt={selectedMedia.title || "Galerie"}
+                  className="max-w-full max-h-[85vh] object-contain animate-scale-in"
+                />
+              ) : selectedMedia?.type === "video" ? (
+                <video
+                  src={selectedMedia.url}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[85vh] object-contain animate-scale-in"
+                />
+              ) : null}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );
