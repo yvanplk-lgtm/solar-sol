@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,35 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Users, Image, Video, FileText, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  photo_url?: string;
+}
+
+interface Partner {
+  id: string;
+  name: string;
+  logo_url: string;
+}
+
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadTeamMembers();
+      loadPartners();
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,6 +142,17 @@ const Admin = () => {
     }
   };
 
+  const loadTeamMembers = async () => {
+    const { data } = await supabase
+      .from("team_members")
+      .select("*")
+      .order("created_at", { ascending: true });
+    
+    if (data) {
+      setTeamMembers(data);
+    }
+  };
+
   const handleAddTeamMember = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -138,6 +171,8 @@ const Admin = () => {
     } else {
       saveTeamMember(name, role);
     }
+    
+    e.currentTarget.reset();
   };
 
   const saveTeamMember = async (name: string, role: string, photo?: string) => {
@@ -158,6 +193,101 @@ const Admin = () => {
         title: "Membre ajouté",
         description: "Membre de l'équipe ajouté avec succès",
       });
+      loadTeamMembers();
+    }
+  };
+
+  const deleteTeamMember = async (id: string) => {
+    const { error } = await supabase
+      .from("team_members")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le membre",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Membre supprimé",
+        description: "Le membre a été supprimé avec succès",
+      });
+      loadTeamMembers();
+    }
+  };
+
+  const loadPartners = async () => {
+    const { data } = await supabase
+      .from("partners")
+      .select("*")
+      .order("display_order", { ascending: true });
+    
+    if (data) {
+      setPartners(data);
+    }
+  };
+
+  const handleAddPartner = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("partnerName") as string;
+    const logo = formData.get("partnerLogo") as File;
+
+    if (!name || !logo || logo.size === 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const logoUrl = reader.result as string;
+      const { error } = await supabase.from("partners").insert({
+        name,
+        logo_url: logoUrl,
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible d'ajouter le partenaire",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Partenaire ajouté",
+          description: "Le partenaire a été ajouté avec succès",
+        });
+        loadPartners();
+        e.currentTarget.reset();
+      }
+    };
+    reader.readAsDataURL(logo);
+  };
+
+  const deletePartner = async (id: string) => {
+    const { error } = await supabase
+      .from("partners")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le partenaire",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Partenaire supprimé",
+        description: "Le partenaire a été supprimé avec succès",
+      });
+      loadPartners();
     }
   };
 
@@ -211,9 +341,10 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
+            <TabsTrigger value="partners">Partenaires</TabsTrigger>
             <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
@@ -271,7 +402,7 @@ const Admin = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="team">
+          <TabsContent value="team" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -298,6 +429,103 @@ const Admin = () => {
                     Ajouter le Membre
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Membres actuels</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {teamMembers.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">Aucun membre pour le moment</p>
+                  ) : (
+                    teamMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between p-3 border rounded">
+                        <div>
+                          <p className="font-medium">{member.name}</p>
+                          <p className="text-sm text-muted-foreground">{member.role}</p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteTeamMember(member.id)}
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="partners" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Ajouter un partenaire</CardTitle>
+                <CardDescription>Gérez les logos de vos partenaires</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAddPartner} className="space-y-4">
+                  <div>
+                    <Label htmlFor="partnerName">Nom du partenaire</Label>
+                    <Input
+                      id="partnerName"
+                      name="partnerName"
+                      placeholder="Nom de l'entreprise"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="partnerLogo">Logo</Label>
+                    <Input
+                      id="partnerLogo"
+                      name="partnerLogo"
+                      type="file"
+                      accept="image/*"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="hero">
+                    Ajouter le partenaire
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Partenaires actuels</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {partners.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">Aucun partenaire pour le moment</p>
+                  ) : (
+                    partners.map((partner) => (
+                      <div key={partner.id} className="flex items-center justify-between p-3 border rounded">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={partner.logo_url} 
+                            alt={partner.name} 
+                            className="h-12 w-12 object-contain"
+                          />
+                          <p className="font-medium">{partner.name}</p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deletePartner(partner.id)}
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

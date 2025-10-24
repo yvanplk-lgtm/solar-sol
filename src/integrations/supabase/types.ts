@@ -157,6 +157,30 @@ export type Database = {
           },
         ]
       }
+      partners: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          id: string
+          logo_url: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          logo_url: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          logo_url?: string
+          name?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string | null
