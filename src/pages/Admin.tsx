@@ -22,6 +22,13 @@ interface Partner {
   logo_url: string;
 }
 
+interface ContactInfo {
+  id: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
 const Admin = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState("");
@@ -29,6 +36,7 @@ const Admin = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -36,6 +44,7 @@ const Admin = () => {
     if (isLoggedIn) {
       loadTeamMembers();
       loadPartners();
+      loadContactInfo();
     }
   }, [isLoggedIn]);
 
@@ -291,6 +300,58 @@ const Admin = () => {
     }
   };
 
+  const loadContactInfo = async () => {
+    const { data } = await supabase
+      .from("contact_info")
+      .select("*")
+      .single();
+    
+    if (data) {
+      setContactInfo(data);
+    }
+  };
+
+  const handleUpdateContactInfo = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const address = formData.get("address") as string;
+    const phone = formData.get("phone") as string;
+    const email = formData.get("email") as string;
+
+    if (!contactInfo?.id) {
+      toast({
+        title: "Erreur",
+        description: "Informations de contact non chargées",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("contact_info")
+      .update({
+        address,
+        phone,
+        email,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", contactInfo.id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour les informations",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Informations mises à jour",
+        description: "Les informations de contact ont été modifiées avec succès",
+      });
+      loadContactInfo();
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-primary p-4">
@@ -341,10 +402,11 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-4xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
             <TabsTrigger value="partners">Partenaires</TabsTrigger>
+            <TabsTrigger value="contact">Contact</TabsTrigger>
             <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
@@ -526,6 +588,55 @@ const Admin = () => {
                     ))
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="contact">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informations de Contact</CardTitle>
+                <CardDescription>Modifiez les informations de contact affichées sur le site</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {contactInfo && (
+                  <form onSubmit={handleUpdateContactInfo} className="space-y-4">
+                    <div>
+                      <Label htmlFor="address">Adresse</Label>
+                      <Input
+                        id="address"
+                        name="address"
+                        defaultValue={contactInfo.address}
+                        placeholder="Abidjan, Côte d'Ivoire"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Téléphone</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        defaultValue={contactInfo.phone}
+                        placeholder="+225 XX XX XX XX XX"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        defaultValue={contactInfo.email}
+                        placeholder="contact@mhshs-ci.com"
+                        required
+                      />
+                    </div>
+                    <Button type="submit" variant="hero">
+                      Mettre à jour
+                    </Button>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

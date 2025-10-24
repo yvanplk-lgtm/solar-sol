@@ -4,10 +4,41 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { FormEvent } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ContactInfo {
+  address: string;
+  phone: string;
+  email: string;
+}
 
 export const Contact = () => {
   const { toast } = useToast();
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    address: "Abidjan, Côte d'Ivoire",
+    phone: "+225 XX XX XX XX XX",
+    email: "contact@mhshs-ci.com"
+  });
+
+  useEffect(() => {
+    loadContactInfo();
+  }, []);
+
+  const loadContactInfo = async () => {
+    const { data } = await supabase
+      .from("contact_info")
+      .select("*")
+      .single();
+    
+    if (data) {
+      setContactInfo({
+        address: data.address,
+        phone: data.phone,
+        email: data.email
+      });
+    }
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -36,7 +67,7 @@ export const Contact = () => {
                 </div>
                 <div>
                   <h3 className="font-bold mb-1">Adresse</h3>
-                  <p className="text-muted-foreground">Abidjan, Côte d'Ivoire</p>
+                  <p className="text-muted-foreground">{contactInfo.address}</p>
                 </div>
               </CardContent>
             </Card>
@@ -48,7 +79,7 @@ export const Contact = () => {
                 </div>
                 <div>
                   <h3 className="font-bold mb-1">Téléphone</h3>
-                  <p className="text-muted-foreground">+225 XX XX XX XX XX</p>
+                  <p className="text-muted-foreground">{contactInfo.phone}</p>
                 </div>
               </CardContent>
             </Card>
@@ -60,7 +91,7 @@ export const Contact = () => {
                 </div>
                 <div>
                   <h3 className="font-bold mb-1">Email</h3>
-                  <p className="text-muted-foreground">contact@mhshs-ci.com</p>
+                  <p className="text-muted-foreground">{contactInfo.email}</p>
                 </div>
               </CardContent>
             </Card>

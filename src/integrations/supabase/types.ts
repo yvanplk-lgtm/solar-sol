@@ -77,6 +77,30 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_info: {
+        Row: {
+          address: string
+          email: string
+          id: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string
+          email?: string
+          id?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          email?: string
+          id?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gallery_items: {
         Row: {
           created_at: string | null
