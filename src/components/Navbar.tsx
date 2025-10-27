@@ -1,11 +1,34 @@
 import { Sun, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAdminClick = () => {
+    if (isLoggedIn) {
+      navigate("/admin");
+    } else {
+      navigate("/auth");
+    }
+  };
 
   const menuItems = [
     { label: "Accueil", href: "/" },
@@ -43,9 +66,9 @@ export const Navbar = () => {
             <Button 
               variant="hero" 
               size="sm"
-              onClick={() => navigate("/admin")}
+              onClick={handleAdminClick}
             >
-              Admin
+              {isLoggedIn ? "Admin" : "Connexion"}
             </Button>
           </div>
 
@@ -77,10 +100,10 @@ export const Navbar = () => {
               className="w-full"
               onClick={() => {
                 setIsOpen(false);
-                navigate("/admin");
+                handleAdminClick();
               }}
             >
-              Admin
+              {isLoggedIn ? "Admin" : "Connexion"}
             </Button>
           </div>
         )}

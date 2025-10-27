@@ -8,15 +8,48 @@ import { ProductsTab } from "@/components/invoice/ProductsTab";
 import { InvoicesTab } from "@/components/invoice/InvoicesTab";
 import { QuotesTab } from "@/components/invoice/QuotesTab";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Invoices = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [companyLogo, setCompanyLogo] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    loadCompanySettings();
+    checkAuthAndLoad();
   }, []);
+
+  const checkAuthAndLoad = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    // Check if user has admin role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", session.user.id)
+      .eq("role", "admin")
+      .single();
+
+    if (!roleData) {
+      toast({
+        variant: "destructive",
+        title: "Accès refusé",
+        description: "Vous n'avez pas les permissions d'administrateur",
+      });
+      navigate("/");
+      return;
+    }
+
+    setIsAdmin(true);
+    loadCompanySettings();
+  };
 
   const loadCompanySettings = async () => {
     const { data } = await supabase
@@ -46,7 +79,7 @@ const Invoices = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p>Chargement...</p>
