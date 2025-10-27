@@ -6,10 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Users, Image, Video, FileText, Home, LogOut } from "lucide-react";
+import { Upload, Users, Image, Video, FileText, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
-import { z } from "zod";
 
 interface TeamMember {
   id: string;
@@ -31,27 +29,11 @@ interface ContactInfo {
   email: string;
 }
 
-const teamMemberSchema = z.object({
-  name: z.string().trim().min(2, "Nom trop court").max(100, "Nom trop long"),
-  role: z.string().trim().min(2, "Rôle trop court").max(100, "Rôle trop long"),
-});
-
-const partnerSchema = z.object({
-  name: z.string().trim().min(2, "Nom trop court").max(100, "Nom trop long"),
-});
-
-const contactSchema = z.object({
-  address: z.string().trim().min(5, "Adresse trop courte").max(500, "Adresse trop longue"),
-  phone: z.string().trim().min(8, "Téléphone invalide").max(20, "Téléphone trop long"),
-  email: z.string().email("Email invalide").max(255, "Email trop long"),
-});
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
 const Admin = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
@@ -59,74 +41,89 @@ const Admin = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check authentication status
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
-      setUser(session.user);
-
-      // Check if user has admin role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!roleData) {
-        toast({
-          variant: "destructive",
-          title: "Accès refusé",
-          description: "Vous n'avez pas les permissions d'administrateur",
-        });
-        navigate("/");
-        return;
-      }
-
-      setIsAdmin(true);
-      setLoading(false);
-      
-      // Load data
+    if (isLoggedIn) {
       loadTeamMembers();
       loadPartners();
       loadContactInfo();
-    };
+    }
+  }, [isLoggedIn]);
 
-    checkAuth();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const { data } = await supabase
+      .from("admin_settings")
+      .select("password")
+      .single();
+    
+    if (data && data.password === password) {
+      setIsLoggedIn(true);
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue dans l'espace admin",
+      });
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Mot de passe incorrect",
+        variant: "destructive",
+      });
+    }
+  };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/auth");
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Erreur",
+        description: "Les mots de passe ne correspondent pas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      toast({
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 4 caractères",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: settings } = await supabase
+      .from("admin_settings")
+      .select("id")
+      .single();
+    
+    if (settings) {
+      const { error } = await supabase
+        .from("admin_settings")
+        .update({ password: newPassword, updated_at: new Date().toISOString() })
+        .eq("id", settings.id);
+      
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: "Impossible de changer le mot de passe",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Mot de passe modifié",
+          description: "Votre mot de passe a été changé avec succès",
+        });
+        setNewPassword("");
+        setConfirmPassword("");
       }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, toast]);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
+    }
   };
 
   const handleMediaUpload = async (type: "photo" | "video", e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      
-      if (file.size > MAX_FILE_SIZE) {
-        toast({
-          variant: "destructive",
-          title: "Fichier trop volumineux",
-          description: "La taille maximale est de 5MB",
-        });
-        return;
-      }
-
       const reader = new FileReader();
       
       reader.onloadend = async () => {
@@ -172,30 +169,9 @@ const Admin = () => {
     const role = formData.get("role") as string;
     const photoFile = (formData.get("photo") as File);
 
-    // Validate inputs
-    try {
-      teamMemberSchema.parse({ name, role });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({
-          variant: "destructive",
-          title: "Erreur de validation",
-          description: error.errors[0].message,
-        });
-        return;
-      }
-    }
+    if (!name || !role) return;
 
     if (photoFile && photoFile.size > 0) {
-      if (photoFile.size > MAX_FILE_SIZE) {
-        toast({
-          variant: "destructive",
-          title: "Photo trop volumineuse",
-          description: "La taille maximale est de 5MB",
-        });
-        return;
-      }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         saveTeamMember(name, role, reader.result as string);
@@ -268,34 +244,11 @@ const Admin = () => {
     const name = formData.get("partnerName") as string;
     const logo = formData.get("partnerLogo") as File;
 
-    // Validate name
-    try {
-      partnerSchema.parse({ name });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({
-          variant: "destructive",
-          title: "Erreur de validation",
-          description: error.errors[0].message,
-        });
-        return;
-      }
-    }
-
-    if (!logo || logo.size === 0) {
+    if (!name || !logo || logo.size === 0) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner un logo",
+        description: "Veuillez remplir tous les champs",
         variant: "destructive",
-      });
-      return;
-    }
-
-    if (logo.size > MAX_FILE_SIZE) {
-      toast({
-        variant: "destructive",
-        title: "Logo trop volumineux",
-        description: "La taille maximale est de 5MB",
       });
       return;
     }
@@ -365,20 +318,6 @@ const Admin = () => {
     const phone = formData.get("phone") as string;
     const email = formData.get("email") as string;
 
-    // Validate inputs
-    try {
-      contactSchema.parse({ address, phone, email });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({
-          variant: "destructive",
-          title: "Erreur de validation",
-          description: error.errors[0].message,
-        });
-        return;
-      }
-    }
-
     if (!contactInfo?.id) {
       toast({
         title: "Erreur",
@@ -413,16 +352,34 @@ const Admin = () => {
     }
   };
 
-  if (loading) {
+  if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Chargement...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-primary p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl">Espace Admin</CardTitle>
+            <CardDescription>Connectez-vous pour gérer le site</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <Label htmlFor="password">Mot de passe</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Entrez le mot de passe"
+                />
+              </div>
+              <Button type="submit" className="w-full" variant="hero">
+                Se Connecter
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     );
-  }
-
-  if (!isAdmin) {
-    return null;
   }
 
   return (
@@ -439,21 +396,18 @@ const Admin = () => {
               <FileText className="w-4 h-4 mr-2" />
               Factures
             </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Se déconnecter
-            </Button>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-4xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
             <TabsTrigger value="partners">Partenaires</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
+            <TabsTrigger value="settings">Paramètres</TabsTrigger>
           </TabsList>
 
           <TabsContent value="media" className="space-y-6">
@@ -464,7 +418,7 @@ const Admin = () => {
                     <Image className="w-5 h-5" />
                     Ajouter une Photo
                   </CardTitle>
-                  <CardDescription>Téléchargez des photos pour la galerie (max 5MB)</CardDescription>
+                  <CardDescription>Téléchargez des photos pour la galerie</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Label htmlFor="photo-upload" className="cursor-pointer">
@@ -489,7 +443,7 @@ const Admin = () => {
                     <Video className="w-5 h-5" />
                     Ajouter une Vidéo
                   </CardTitle>
-                  <CardDescription>Téléchargez des vidéos pour la galerie (max 5MB)</CardDescription>
+                  <CardDescription>Téléchargez des vidéos pour la galerie</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Label htmlFor="video-upload" className="cursor-pointer">
@@ -523,26 +477,14 @@ const Admin = () => {
                 <form onSubmit={handleAddTeamMember} className="space-y-4">
                   <div>
                     <Label htmlFor="name">Nom complet</Label>
-                    <Input 
-                      id="name" 
-                      name="name" 
-                      placeholder="Jean Dupont" 
-                      required 
-                      maxLength={100}
-                    />
+                    <Input id="name" name="name" placeholder="Jean Dupont" required />
                   </div>
                   <div>
                     <Label htmlFor="role">Rôle / Fonction</Label>
-                    <Input 
-                      id="role" 
-                      name="role" 
-                      placeholder="Directeur Technique" 
-                      required 
-                      maxLength={100}
-                    />
+                    <Input id="role" name="role" placeholder="Directeur Technique" required />
                   </div>
                   <div>
-                    <Label htmlFor="photo">Photo (optionnel, max 5MB)</Label>
+                    <Label htmlFor="photo">Photo (optionnel)</Label>
                     <Input id="photo" name="photo" type="file" accept="image/*" />
                   </div>
                   <Button type="submit" variant="hero">
@@ -586,7 +528,7 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Ajouter un partenaire</CardTitle>
-                <CardDescription>Gérez les logos de vos partenaires (max 5MB)</CardDescription>
+                <CardDescription>Gérez les logos de vos partenaires</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleAddPartner} className="space-y-4">
@@ -597,7 +539,6 @@ const Admin = () => {
                       name="partnerName"
                       placeholder="Nom de l'entreprise"
                       required
-                      maxLength={100}
                     />
                   </div>
                   <div>
@@ -668,7 +609,6 @@ const Admin = () => {
                         defaultValue={contactInfo.address}
                         placeholder="Abidjan, Côte d'Ivoire"
                         required
-                        maxLength={500}
                       />
                     </div>
                     <div>
@@ -679,7 +619,6 @@ const Admin = () => {
                         defaultValue={contactInfo.phone}
                         placeholder="+225 XX XX XX XX XX"
                         required
-                        maxLength={20}
                       />
                     </div>
                     <div>
@@ -691,7 +630,6 @@ const Admin = () => {
                         defaultValue={contactInfo.email}
                         placeholder="contact@mhshs-ci.com"
                         required
-                        maxLength={255}
                       />
                     </div>
                     <Button type="submit" variant="hero">
@@ -699,6 +637,44 @@ const Admin = () => {
                     </Button>
                   </form>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Changer le mot de passe Admin</CardTitle>
+                <CardDescription>Modifiez le mot de passe d'accès à l'espace admin</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <Label htmlFor="newPassword">Nouveau mot de passe</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Entrez le nouveau mot de passe"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirmez le nouveau mot de passe"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="hero">
+                    Changer le mot de passe
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
