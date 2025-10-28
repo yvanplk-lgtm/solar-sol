@@ -6,6 +6,8 @@ import { Invoice, calculateInvoice } from "@/types/invoice";
 import { numberToFrenchWords } from "@/lib/numberToWords";
 import { Printer } from "lucide-react";
 import { Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InvoicePreviewProps {
   invoice: Invoice;
@@ -15,6 +17,30 @@ interface InvoicePreviewProps {
 
 export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) => {
   const calculations = calculateInvoice(invoice);
+  const [contactInfo, setContactInfo] = useState({
+    address: "Abidjan, Côte d'Ivoire",
+    phone: "+225 XX XX XX XX XX",
+    email: "contact@mhshs-ci.com"
+  });
+
+  useEffect(() => {
+    loadContactInfo();
+  }, []);
+
+  const loadContactInfo = async () => {
+    const { data } = await supabase
+      .from("contact_info")
+      .select("*")
+      .maybeSingle();
+    
+    if (data) {
+      setContactInfo({
+        address: data.address,
+        phone: data.phone,
+        email: data.email
+      });
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -49,9 +75,9 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
               )}
               <div className="mt-4 text-sm">
                 <p className="font-bold">MHSHS-CI SARL</p>
-                <p>Abidjan, Côte d'Ivoire</p>
-                <p>Email: contact@mhshs-ci.com</p>
-                <p>Tél: +225 XX XX XX XX XX</p>
+                <p>{contactInfo.address}</p>
+                <p>Email: {contactInfo.email}</p>
+                <p>Tél: {contactInfo.phone}</p>
               </div>
             </div>
             <div className="text-right">
