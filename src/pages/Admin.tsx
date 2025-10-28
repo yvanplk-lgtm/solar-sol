@@ -452,8 +452,7 @@ const Admin = () => {
     }
 
     // Use RPC query to find user and insert admin role
-    // This uses a subquery to find the user_id from auth.users by email
-    const { error } = await supabase.rpc('add_admin_role', { user_email: email });
+    const { error } = await (supabase.rpc as any)('add_admin_role', { user_email: email });
 
     if (error) {
       toast({
@@ -790,6 +789,69 @@ const Admin = () => {
                     </Button>
                   </form>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="admins" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Ajouter un administrateur
+                </CardTitle>
+                <CardDescription>Donnez les droits d'administrateur à un utilisateur existant</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleAddAdmin} className="space-y-4">
+                  <div>
+                    <Label htmlFor="adminEmail">Email de l'utilisateur</Label>
+                    <Input
+                      id="adminEmail"
+                      name="adminEmail"
+                      type="email"
+                      placeholder="utilisateur@example.com"
+                      required
+                      maxLength={255}
+                    />
+                  </div>
+                  <Button type="submit" variant="hero">
+                    Ajouter comme admin
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Administrateurs actuels</CardTitle>
+                <CardDescription>Liste des utilisateurs ayant les droits d'administrateur</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {adminUsers.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">Aucun administrateur</p>
+                  ) : (
+                    adminUsers.map((admin) => (
+                      <div key={admin.id} className="flex items-center justify-between p-3 border rounded">
+                        <div>
+                          <p className="font-medium text-sm font-mono">{admin.email}</p>
+                          {admin.id === user?.id && (
+                            <p className="text-xs text-muted-foreground">(Vous)</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemoveAdmin(admin.id, admin.email)}
+                          disabled={admin.id === user?.id}
+                        >
+                          Retirer
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
