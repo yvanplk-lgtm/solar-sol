@@ -20,9 +20,18 @@ interface InvoiceFormProps {
 export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: InvoiceFormProps) => {
   const { toast } = useToast();
   const [selectedClientId, setSelectedClientId] = useState("");
+  const [clientContact, setClientContact] = useState("");
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [labor, setLabor] = useState(0);
   const [discount, setDiscount] = useState(0);
+
+  const handleClientChange = (clientId: string) => {
+    setSelectedClientId(clientId);
+    const client = clients.find(c => c.id === clientId);
+    if (client) {
+      setClientContact(client.contact);
+    }
+  };
 
   const handleAddItem = (productId: string) => {
     const product = products.find(p => p.id === productId);
@@ -78,7 +87,7 @@ export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: Invoi
       clientId: client.id,
       clientName: client.name,
       clientAddress: client.address,
-      clientContact: client.contact,
+      clientContact: clientContact || client.contact,
       items,
       labor,
       discount,
@@ -100,20 +109,33 @@ export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: Invoi
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <Label htmlFor="client">Client</Label>
-            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="client">Client</Label>
+              <Select value={selectedClientId} onValueChange={handleClientChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="clientContact">Contact</Label>
+              <Input
+                id="clientContact"
+                type="text"
+                value={clientContact}
+                onChange={(e) => setClientContact(e.target.value)}
+                placeholder="Numéro de téléphone ou email"
+                disabled={!selectedClientId}
+              />
+            </div>
           </div>
 
           <div>
