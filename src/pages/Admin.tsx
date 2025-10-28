@@ -46,6 +46,10 @@ const contactSchema = z.object({
   email: z.string().email("Email invalide").max(255, "Email trop long"),
 });
 
+const adminEmailSchema = z.object({
+  email: z.string().email("Email invalide").max(255, "Email trop long"),
+});
+
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 const Admin = () => {
@@ -55,6 +59,7 @@ const Admin = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [adminUsers, setAdminUsers] = useState<Array<{ id: string; email: string }>>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -95,6 +100,7 @@ const Admin = () => {
       loadTeamMembers();
       loadPartners();
       loadContactInfo();
+      loadAdminUsers();
     };
 
     checkAuth();
@@ -413,6 +419,90 @@ const Admin = () => {
     }
   };
 
+  const loadAdminUsers = async () => {
+    const { data: rolesData } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "admin");
+
+    if (rolesData) {
+      // Note: We can only show user IDs here since auth.users is not accessible from client
+      // In a production app, consider storing user emails in a profiles table
+      setAdminUsers(rolesData.map(role => ({ id: role.user_id, email: role.user_id })));
+    }
+  };
+
+  const handleAddAdmin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("adminEmail") as string;
+
+    // Validate email
+    try {
+      adminEmailSchema.parse({ email });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          variant: "destructive",
+          title: "Erreur de validation",
+          description: error.errors[0].message,
+        });
+        return;
+      }
+    }
+
+    // Use RPC query to find user and insert admin role
+    // This uses a subquery to find the user_id from auth.users by email
+    const { error } = await supabase.rpc('add_admin_role', { user_email: email });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible d'ajouter l'administrateur. Vérifiez que l'utilisateur existe.",
+      });
+    } else {
+      toast({
+        title: "Administrateur ajouté",
+        description: `${email} est maintenant administrateur`,
+      });
+      loadAdminUsers();
+      e.currentTarget.reset();
+    }
+  };
+
+  const handleRemoveAdmin = async (userId: string, email: string) => {
+    // Prevent removing self
+    if (userId === user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Action impossible",
+        description: "Vous ne pouvez pas retirer vos propres droits d'administrateur",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId)
+      .eq("role", "admin");
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de retirer l'administrateur",
+      });
+    } else {
+      toast({
+        title: "Administrateur retiré",
+        description: `${email} n'est plus administrateur`,
+      });
+      loadAdminUsers();
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -449,11 +539,12 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-5xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
             <TabsTrigger value="partners">Partenaires</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
+            <TabsTrigger value="admins">Admins</TabsTrigger>
           </TabsList>
 
           <TabsContent value="media" className="space-y-6">
