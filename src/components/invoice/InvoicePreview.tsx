@@ -22,7 +22,8 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
     address: "Abidjan, Côte d'Ivoire",
     phone: "+225 XX XX XX XX XX",
     email: "contact@mhshs-ci.com",
-    footer_text: "Merci pour votre confiance"
+    footer_text: "Merci pour votre confiance",
+    website: "mhshs-ci.com"
   });
 
   useEffect(() => {
@@ -40,7 +41,8 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
         address: data.address,
         phone: data.phone,
         email: data.email,
-        footer_text: data.footer_text || "Merci pour votre confiance"
+        footer_text: data.footer_text || "Merci pour votre confiance",
+        website: data.website || "mhshs-ci.com"
       });
     }
   };
@@ -238,6 +240,7 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
           {/* Footer */}
           <div className="text-xs text-muted-foreground text-center border-t pt-4">
             <p>MHSHS-CI SARL - Solutions Solaires en Côte d'Ivoire</p>
+            <p>{contactInfo.website}</p>
             <p>{contactInfo.footer_text}</p>
           </div>
         </div>

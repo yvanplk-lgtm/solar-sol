@@ -11,6 +11,7 @@ interface ContactInfo {
   address: string;
   phone: string;
   email: string;
+  website: string;
 }
 
 export const Contact = () => {
@@ -18,7 +19,8 @@ export const Contact = () => {
   const [contactInfo, setContactInfo] = useState<ContactInfo>({
     address: "Abidjan, Côte d'Ivoire",
     phone: "+225 XX XX XX XX XX",
-    email: "contact@mhshs-ci.com"
+    email: "contact@mhshs-ci.com",
+    website: "mhshs-ci.com"
   });
 
   useEffect(() => {
@@ -35,7 +37,8 @@ export const Contact = () => {
       setContactInfo({
         address: data.address,
         phone: data.phone,
-        email: data.email
+        email: data.email,
+        website: data.website || "mhshs-ci.com"
       });
     }
   };
@@ -92,6 +95,18 @@ export const Contact = () => {
                 <div>
                   <h3 className="font-bold mb-1">Email</h3>
                   <p className="text-muted-foreground">{contactInfo.email}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6 flex items-start gap-4">
+                <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                  <Mail className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-bold mb-1">Site Web</h3>
+                  <p className="text-muted-foreground">{contactInfo.website}</p>
                 </div>
               </CardContent>
             </Card>

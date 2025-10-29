@@ -31,6 +31,7 @@ interface ContactInfo {
   phone: string;
   email: string;
   footer_text: string;
+  website: string;
 }
 
 const teamMemberSchema = z.object({
@@ -47,6 +48,7 @@ const contactSchema = z.object({
   phone: z.string().trim().min(8, "Téléphone invalide").max(20, "Téléphone trop long"),
   email: z.string().email("Email invalide").max(255, "Email trop long"),
   footer_text: z.string().trim().max(500, "Texte du pied de page trop long"),
+  website: z.string().trim().max(100, "URL du site web trop long"),
 });
 
 const adminEmailSchema = z.object({
@@ -374,10 +376,11 @@ const Admin = () => {
     const phone = formData.get("phone") as string;
     const email = formData.get("email") as string;
     const footer_text = formData.get("footer_text") as string;
+    const website = formData.get("website") as string;
 
     // Validate inputs
     try {
-      contactSchema.parse({ address, phone, email, footer_text });
+      contactSchema.parse({ address, phone, email, footer_text, website });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -405,6 +408,7 @@ const Admin = () => {
         phone,
         email,
         footer_text,
+        website,
         updated_at: new Date().toISOString()
       })
       .eq("id", contactInfo.id);
@@ -798,6 +802,17 @@ const Admin = () => {
                         placeholder="Merci pour votre confiance"
                         maxLength={500}
                         rows={3}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="website">Site web</Label>
+                      <Input
+                        id="website"
+                        name="website"
+                        type="text"
+                        defaultValue={contactInfo.website}
+                        placeholder="mhshs-ci.com"
+                        maxLength={100}
                       />
                     </div>
                     <Button type="submit" variant="hero">
