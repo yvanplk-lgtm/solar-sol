@@ -63,6 +63,7 @@ export type Database = {
         Row: {
           address: string
           email: string
+          footer_text: string | null
           id: string
           phone: string
           updated_at: string | null
@@ -70,6 +71,7 @@ export type Database = {
         Insert: {
           address?: string
           email?: string
+          footer_text?: string | null
           id?: string
           phone?: string
           updated_at?: string | null
@@ -77,6 +79,7 @@ export type Database = {
         Update: {
           address?: string
           email?: string
+          footer_text?: string | null
           id?: string
           phone?: string
           updated_at?: string | null

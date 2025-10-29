@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Users, Image, Video, FileText, Home, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ interface ContactInfo {
   address: string;
   phone: string;
   email: string;
+  footer_text: string;
 }
 
 const teamMemberSchema = z.object({
@@ -44,6 +46,7 @@ const contactSchema = z.object({
   address: z.string().trim().min(5, "Adresse trop courte").max(500, "Adresse trop longue"),
   phone: z.string().trim().min(8, "Téléphone invalide").max(20, "Téléphone trop long"),
   email: z.string().email("Email invalide").max(255, "Email trop long"),
+  footer_text: z.string().trim().max(500, "Texte du pied de page trop long"),
 });
 
 const adminEmailSchema = z.object({
@@ -370,10 +373,11 @@ const Admin = () => {
     const address = formData.get("address") as string;
     const phone = formData.get("phone") as string;
     const email = formData.get("email") as string;
+    const footer_text = formData.get("footer_text") as string;
 
     // Validate inputs
     try {
-      contactSchema.parse({ address, phone, email });
+      contactSchema.parse({ address, phone, email, footer_text });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -400,6 +404,7 @@ const Admin = () => {
         address,
         phone,
         email,
+        footer_text,
         updated_at: new Date().toISOString()
       })
       .eq("id", contactInfo.id);
@@ -782,6 +787,17 @@ const Admin = () => {
                         placeholder="contact@mhshs-ci.com"
                         required
                         maxLength={255}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="footer_text">Texte du pied de page (factures et devis)</Label>
+                      <Textarea
+                        id="footer_text"
+                        name="footer_text"
+                        defaultValue={contactInfo.footer_text}
+                        placeholder="Merci pour votre confiance"
+                        maxLength={500}
+                        rows={3}
                       />
                     </div>
                     <Button type="submit" variant="hero">
