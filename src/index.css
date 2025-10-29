@@ -115,6 +115,20 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 
+  @media print {
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+    
+    #invoice-print {
+      width: 210mm !important;
+      min-height: 297mm !important;
+      margin: 0 !important;
+      padding: 20mm !important;
+    }
+  }
+
   @keyframes fade-in {
     from {
       opacity: 0;

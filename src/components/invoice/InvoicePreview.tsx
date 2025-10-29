@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Invoice, calculateInvoice } from "@/types/invoice";
 import { numberToFrenchWords } from "@/lib/numberToWords";
-import { Printer } from "lucide-react";
+import { Printer, Download, FileText } from "lucide-react";
 import { Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import html2pdf from "html2pdf.js";
 
 interface InvoicePreviewProps {
   invoice: Invoice;
@@ -46,20 +47,75 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
     window.print();
   };
 
+  const handleDownloadPDF = () => {
+    const element = document.getElementById('invoice-print');
+    const opt = {
+      margin: 0,
+      filename: `${invoice.type === "invoice" ? "facture" : "devis"}-${invoice.number}.pdf`,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+    };
+    html2pdf().set(opt).from(element).save();
+  };
+
+  const handleDownloadHTML = () => {
+    const element = document.getElementById('invoice-print');
+    if (!element) return;
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${invoice.type === "invoice" ? "Facture" : "Devis"} - ${invoice.number}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          @media print {
+            @page { size: A4; margin: 20mm; }
+          }
+        </style>
+      </head>
+      <body>
+        ${element.innerHTML}
+      </body>
+      </html>
+    `;
+    
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${invoice.type === "invoice" ? "facture" : "devis"}-${invoice.number}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">
             <span>{invoice.type === "invoice" ? "Facture" : "Devis"} - {invoice.number}</span>
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimer
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handlePrint}>
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimer
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+                <Download className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadHTML}>
+                <FileText className="w-4 h-4 mr-2" />
+                HTML
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div id="invoice-print" className="bg-background p-8 space-y-6">
+        <div id="invoice-print" className="bg-background p-8 space-y-6" style={{ width: '210mm', minHeight: '297mm', margin: '0 auto' }}>
           {/* Header */}
           <div className="flex justify-between items-start">
             <div>
