@@ -11,6 +11,7 @@ import { Upload, Users, Image, Video, FileText, Home, LogOut } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { z } from "zod";
+import { ChatManagement } from "@/components/admin/ChatManagement";
 
 interface TeamMember {
   id: string;
@@ -32,6 +33,7 @@ interface ContactInfo {
   email: string;
   footer_text: string;
   website: string;
+  whatsapp: string;
 }
 
 const teamMemberSchema = z.object({
@@ -49,6 +51,7 @@ const contactSchema = z.object({
   email: z.string().email("Email invalide").max(255, "Email trop long"),
   footer_text: z.string().trim().max(500, "Texte du pied de page trop long"),
   website: z.string().trim().max(100, "URL du site web trop long"),
+  whatsapp: z.string().trim().max(20, "Numéro WhatsApp trop long"),
 });
 
 const adminEmailSchema = z.object({
@@ -377,10 +380,11 @@ const Admin = () => {
     const email = formData.get("email") as string;
     const footer_text = formData.get("footer_text") as string;
     const website = formData.get("website") as string;
+    const whatsapp = formData.get("whatsapp") as string;
 
     // Validate inputs
     try {
-      contactSchema.parse({ address, phone, email, footer_text, website });
+      contactSchema.parse({ address, phone, email, footer_text, website, whatsapp });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -409,6 +413,7 @@ const Admin = () => {
         email,
         footer_text,
         website,
+        whatsapp,
         updated_at: new Date().toISOString()
       })
       .eq("id", contactInfo.id);
@@ -547,11 +552,12 @@ const Admin = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="media" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-6xl">
             <TabsTrigger value="media">Médias</TabsTrigger>
             <TabsTrigger value="team">Équipe</TabsTrigger>
             <TabsTrigger value="partners">Partenaires</TabsTrigger>
             <TabsTrigger value="contact">Contact</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
           </TabsList>
 
@@ -815,6 +821,17 @@ const Admin = () => {
                         maxLength={100}
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="whatsapp">Numéro WhatsApp</Label>
+                      <Input
+                        id="whatsapp"
+                        name="whatsapp"
+                        type="text"
+                        defaultValue={contactInfo.whatsapp}
+                        placeholder="+225 XX XX XX XX XX"
+                        maxLength={20}
+                      />
+                    </div>
                     <Button type="submit" variant="hero">
                       Mettre à jour
                     </Button>
@@ -822,6 +839,10 @@ const Admin = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="chat" className="space-y-4">
+            <ChatManagement />
           </TabsContent>
 
           <TabsContent value="admins" className="space-y-4">
