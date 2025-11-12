@@ -50,7 +50,7 @@ export function calculateInvoice(invoice: Invoice): InvoiceCalculations {
   const totalBeforeDiscount = subtotal + laborAmount;
   const discountAmount = (totalBeforeDiscount * invoice.discount) / 100;
   const totalAfterDiscount = totalBeforeDiscount - discountAmount;
-  const teeAmount = (totalAfterDiscount * 2) / 100; // 2% TEE
+  const teeAmount = (totalAfterDiscount * -2) / 100; // -2% TEE
   const totalTTC = totalAfterDiscount + teeAmount;
 
   return {
