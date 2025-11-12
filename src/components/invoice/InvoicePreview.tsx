@@ -204,6 +204,12 @@ export const InvoicePreview = ({ invoice, logo, onClose }: InvoicePreviewProps) 
                   </span>
                 </div>
               )}
+              <div className="flex justify-between border-t pt-2">
+                <span className="font-semibold">Sous-total + Main d'œuvre:</span>
+                <span className="font-semibold">
+                  {calculations.totalBeforeDiscount.toLocaleString("fr-FR")} FCFA
+                </span>
+              </div>
               {invoice.discount > 0 && (
                 <div className="flex justify-between text-destructive">
                   <span>Remise ({invoice.discount}%):</span>
