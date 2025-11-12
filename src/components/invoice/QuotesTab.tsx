@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Upload } from "lucide-react";
+import { Plus, Eye, Upload, Pencil } from "lucide-react";
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview } from "./InvoicePreview";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ interface QuotesTabProps {
 export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<any>(null);
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -83,7 +84,7 @@ export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
   };
 
   const handleCreateQuote = async (quote: any) => {
-    const { error } = await supabase.from("invoices").insert({
+    const quoteData = {
       number: quote.number,
       type: "quote",
       client_id: quote.clientId,
@@ -95,22 +96,54 @@ export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
       discount: quote.discount,
       date: quote.date,
       logo: logo,
-    });
+    };
+
+    let error;
+    if (editingQuote) {
+      const result = await supabase
+        .from("invoices")
+        .update(quoteData)
+        .eq("id", editingQuote.id);
+      error = result.error;
+    } else {
+      const result = await supabase.from("invoices").insert(quoteData);
+      error = result.error;
+    }
 
     if (error) {
       toast({
         title: "Erreur",
-        description: "Impossible de créer le devis",
+        description: editingQuote ? "Impossible de modifier le devis" : "Impossible de créer le devis",
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Devis créé",
-        description: "Le devis a été créé avec succès",
+        title: editingQuote ? "Devis modifié" : "Devis créé",
+        description: editingQuote ? "Le devis a été modifié avec succès" : "Le devis a été créé avec succès",
       });
       setShowForm(false);
+      setEditingQuote(null);
       loadData();
     }
+  };
+
+  const handleEditQuote = (quote: Quote) => {
+    const displayQuote = {
+      id: quote.id,
+      number: quote.number,
+      type: "quote",
+      clientId: quote.client_id,
+      clientName: quote.client_name,
+      clientAddress: quote.client_address,
+      clientContact: quote.client_contact,
+      items: quote.items,
+      labor: quote.labor,
+      discount: quote.discount,
+      date: quote.date,
+      logo: quote.logo || logo,
+    };
+    setEditingQuote(displayQuote);
+    setShowForm(true);
   };
 
   const handleViewQuote = (quote: Quote) => {
@@ -155,7 +188,7 @@ export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
               onChange={handleLogoUpload}
             />
           </Label>
-          <Button onClick={() => setShowForm(!showForm)} variant="hero">
+          <Button onClick={() => { setShowForm(!showForm); setEditingQuote(null); }} variant="hero">
             <Plus className="w-4 h-4 mr-2" />
             Nouveau Devis
           </Button>
@@ -168,7 +201,8 @@ export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
           clients={clients.map(c => ({ ...c, unitPrice: 0 }))}
           products={products.map(p => ({ ...p, unitPrice: p.unit_price }))}
           onSave={handleCreateQuote}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => { setShowForm(false); setEditingQuote(null); }}
+          initialInvoice={editingQuote}
         />
       )}
 
@@ -210,13 +244,22 @@ export const QuotesTab = ({ logo, onLogoChange }: QuotesTabProps) => {
                     <TableCell>{new Date(quote.date).toLocaleDateString("fr-FR")}</TableCell>
                     <TableCell className="text-right">{total.toLocaleString("fr-FR")} FCFA</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewQuote(quote)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditQuote(quote)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewQuote(quote)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
