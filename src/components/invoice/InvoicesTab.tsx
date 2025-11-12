@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Upload } from "lucide-react";
+import { Plus, Eye, Upload, Pencil } from "lucide-react";
 import { InvoiceForm } from "./InvoiceForm";
 import { InvoicePreview } from "./InvoicePreview";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ interface InvoicesTabProps {
 export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -83,7 +84,7 @@ export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
   };
 
   const handleCreateInvoice = async (invoice: any) => {
-    const { error } = await supabase.from("invoices").insert({
+    const invoiceData = {
       number: invoice.number,
       type: "invoice",
       client_id: invoice.clientId,
@@ -95,22 +96,54 @@ export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
       discount: invoice.discount,
       date: invoice.date,
       logo: logo,
-    });
+    };
+
+    let error;
+    if (editingInvoice) {
+      const result = await supabase
+        .from("invoices")
+        .update(invoiceData)
+        .eq("id", editingInvoice.id);
+      error = result.error;
+    } else {
+      const result = await supabase.from("invoices").insert(invoiceData);
+      error = result.error;
+    }
 
     if (error) {
       toast({
         title: "Erreur",
-        description: "Impossible de créer la facture",
+        description: editingInvoice ? "Impossible de modifier la facture" : "Impossible de créer la facture",
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Facture créée",
-        description: "La facture a été créée avec succès",
+        title: editingInvoice ? "Facture modifiée" : "Facture créée",
+        description: editingInvoice ? "La facture a été modifiée avec succès" : "La facture a été créée avec succès",
       });
       setShowForm(false);
+      setEditingInvoice(null);
       loadData();
     }
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    const displayInvoice = {
+      id: invoice.id,
+      number: invoice.number,
+      type: "invoice",
+      clientId: invoice.client_id,
+      clientName: invoice.client_name,
+      clientAddress: invoice.client_address,
+      clientContact: invoice.client_contact,
+      items: invoice.items,
+      labor: invoice.labor,
+      discount: invoice.discount,
+      date: invoice.date,
+      logo: invoice.logo || logo,
+    };
+    setEditingInvoice(displayInvoice);
+    setShowForm(true);
   };
 
   const handleViewInvoice = (invoice: Invoice) => {
@@ -155,7 +188,7 @@ export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
               onChange={handleLogoUpload}
             />
           </Label>
-          <Button onClick={() => setShowForm(!showForm)} variant="hero">
+          <Button onClick={() => { setShowForm(!showForm); setEditingInvoice(null); }} variant="hero">
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle Facture
           </Button>
@@ -168,7 +201,8 @@ export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
           clients={clients.map(c => ({ ...c, unitPrice: 0 }))}
           products={products.map(p => ({ ...p, unitPrice: p.unit_price }))}
           onSave={handleCreateInvoice}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => { setShowForm(false); setEditingInvoice(null); }}
+          initialInvoice={editingInvoice}
         />
       )}
 
@@ -210,13 +244,22 @@ export const InvoicesTab = ({ logo, onLogoChange }: InvoicesTabProps) => {
                     <TableCell>{new Date(invoice.date).toLocaleDateString("fr-FR")}</TableCell>
                     <TableCell className="text-right">{total.toLocaleString("fr-FR")} FCFA</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewInvoice(invoice)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditInvoice(invoice)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewInvoice(invoice)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

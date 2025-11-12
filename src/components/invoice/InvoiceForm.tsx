@@ -15,15 +15,16 @@ interface InvoiceFormProps {
   products: Product[];
   onSave: (invoice: Invoice) => void;
   onCancel: () => void;
+  initialInvoice?: Invoice;
 }
 
-export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: InvoiceFormProps) => {
+export const InvoiceForm = ({ type, clients, products, onSave, onCancel, initialInvoice }: InvoiceFormProps) => {
   const { toast } = useToast();
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [clientContact, setClientContact] = useState("");
-  const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [labor, setLabor] = useState(0);
-  const [discount, setDiscount] = useState(0);
+  const [selectedClientId, setSelectedClientId] = useState(initialInvoice?.clientId || "");
+  const [clientContact, setClientContact] = useState(initialInvoice?.clientContact || "");
+  const [items, setItems] = useState<InvoiceItem[]>(initialInvoice?.items || []);
+  const [labor, setLabor] = useState(initialInvoice?.labor || 0);
+  const [discount, setDiscount] = useState(initialInvoice?.discount || 0);
 
   const handleClientChange = (clientId: string) => {
     setSelectedClientId(clientId);
@@ -78,10 +79,10 @@ export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: Invoi
     }
 
     const prefix = type === "invoice" ? "FAC" : "DEV";
-    const number = `${prefix}-${String(Date.now()).slice(-4)}`;
+    const number = initialInvoice?.number || `${prefix}-${String(Date.now()).slice(-4)}`;
 
     const invoice: Invoice = {
-      id: Date.now().toString(),
+      id: initialInvoice?.id || Date.now().toString(),
       number,
       type,
       clientId: client.id,
@@ -95,16 +96,22 @@ export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: Invoi
     };
 
     onSave(invoice);
+    const isEdit = !!initialInvoice;
     toast({
-      title: type === "invoice" ? "Facture créée" : "Devis créé",
-      description: `${type === "invoice" ? "La facture" : "Le devis"} ${number} a été créé avec succès`,
+      title: isEdit ? (type === "invoice" ? "Facture modifiée" : "Devis modifié") : (type === "invoice" ? "Facture créée" : "Devis créé"),
+      description: `${type === "invoice" ? "La facture" : "Le devis"} ${number} a été ${isEdit ? "modifié" : "créé"} avec succès`,
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{type === "invoice" ? "Nouvelle Facture" : "Nouveau Devis"}</CardTitle>
+        <CardTitle>
+          {initialInvoice 
+            ? (type === "invoice" ? "Modifier la Facture" : "Modifier le Devis")
+            : (type === "invoice" ? "Nouvelle Facture" : "Nouveau Devis")
+          }
+        </CardTitle>
         <CardDescription>Remplissez les informations</CardDescription>
       </CardHeader>
       <CardContent>
@@ -228,7 +235,10 @@ export const InvoiceForm = ({ type, clients, products, onSave, onCancel }: Invoi
 
           <div className="flex gap-2">
             <Button type="submit" variant="hero">
-              Créer {type === "invoice" ? "la Facture" : "le Devis"}
+              {initialInvoice 
+                ? `Modifier ${type === "invoice" ? "la Facture" : "le Devis"}`
+                : `Créer ${type === "invoice" ? "la Facture" : "le Devis"}`
+              }
             </Button>
             <Button type="button" variant="outline" onClick={onCancel}>
               Annuler
